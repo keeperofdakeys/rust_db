@@ -48,6 +48,10 @@ impl Token {
   fn len( &self ) -> uint {
     self.token.len()
   }
+
+  fn set_quoting( &mut self, char: char ) {
+    self.quoted = Some( char );
+  }
 }
 
 macro_rules! tokens_append(
@@ -88,6 +92,7 @@ pub fn lex_statement( input: &str ) -> Option<Vec<Token>> {
           '\'' | '"' => {
             tokens_append!( token, tokens );
             quote_state = Quote( char );
+            token.set_quoting( char );
             continue;
           },
           _ => {}
