@@ -12,7 +12,6 @@ enum EscapeState {
   Escaping
 }
 
-#[deriving(PartialEq, Show)]
 struct Token {
   token: String,
   quoted: Option<char>
@@ -51,6 +50,12 @@ impl Token {
 
   fn set_quoting( &mut self, char: char ) {
     self.quoted = Some( char );
+  }
+}
+
+impl PartialEq for Token {
+  fn eq( &self, other: &Token ) -> bool {
+    self.token.eq( &other.token )
   }
 }
 
@@ -103,10 +108,22 @@ pub fn lex_statement( input: &str ) -> Option<Vec<Token>> {
           quote_state = NoQuote;
           tokens_append!( token, tokens );
           continue;
+        } else {
+          token.push( char );
+          continue;
         }
       }
     }
-    token.push( char );
+    match char {
+      ',' | '(' | ')' => {
+        tokens_append!( token, tokens );
+        token.push( char );
+        tokens_append!( token, tokens );
+      },
+      _ => {
+        token.push( char );
+      }
+    }
   }
 
   if escape_state == Escaping {
@@ -175,5 +192,26 @@ fn test_escaping_one() {
 fn test_quote_escape() {
   test_lex_statement!( "\"token1 \\\" token2\"",
     vec![ "token1 \" token2" ]
+  );
+}
+
+#[test]
+fn test_comma() {
+  test_lex_statement!( "token1,token2, token3 ,token4",
+    vec![ "token1", ",", "token2", ",", "token3", ",", "token4" ]
+  );
+}
+
+#[test]
+fn test_parens() {
+  test_lex_statement!( "token1( token2 )token3",
+    vec![ "token1", "(", "token2", ")", "token3" ]
+  );
+}
+
+#[test]
+fn test_parens_with_commas_quotes_escapes() {
+  test_lex_statement!( "\\(token1 (token2, token3, to\"ken4, \"token5\\, token6\\))",
+    vec![ "(token1", "(", "token2", ",", "token3", ",", "to", "ken4, ", "token5,", "token6)", ")" ]
   );
 }
