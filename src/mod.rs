@@ -1,6 +1,6 @@
 #![feature(macro_rules)]
 
-mod parser;
+mod lex;
 
 fn main() {
 }
