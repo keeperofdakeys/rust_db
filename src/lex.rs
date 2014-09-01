@@ -67,6 +67,12 @@ impl PartialEq for Token {
   }
 }
 
+#[deriving(PartialEq)]
+enum LexError {
+  UnmatchedQuote,
+  UnmatchedEscape
+}
+
 macro_rules! tokens_append(
   ($token: ident, $tokens: ident) => (
     match $token.len() {
@@ -79,7 +85,7 @@ macro_rules! tokens_append(
   )
 )
 
-pub fn lex_statement( input: &str ) -> Option<Vec<Token>> {
+pub fn lex_statement( input: &str ) -> Result<Vec<Token>, LexError> {
   let mut token = Token::new();
   let mut tokens = Vec::new();
   let mut quote_state = NoQuote;
@@ -141,22 +147,22 @@ pub fn lex_statement( input: &str ) -> Option<Vec<Token>> {
   }
 
   if escape_state == Escaping {
-    return None;
+    return Err( UnmatchedEscape );
   }
   match quote_state {
-    Quote(_) => return None,
+    Quote(_) => return Err( UnmatchedQuote ),
     _ => {}
   }
   if token.len() > 0 {
     tokens.push( token );
   }
 
-  Some( tokens )
+  Ok( tokens )
 }
 
 macro_rules! test_lex_statement {
   ($str: expr, $str_vec: expr) => (
-    assert!( lex_statement( $str ) == Some( Token::from_str_vec( $str_vec ) ) );
+    assert!( lex_statement( $str ) == Ok( Token::from_str_vec( $str_vec ) ) );
   )
 }
 
@@ -228,4 +234,22 @@ fn test_parens_with_commas_quotes_escapes() {
   test_lex_statement!( "\\(token1 (token2, token3, to\"ken4, \"token5\\, token6\\))",
     vec![ "(token1", "(", "token2", ",", "token3", ",", "to", "ken4, ", "token5,", "token6)", ")" ]
   );
+}
+
+#[test]
+fn test_unbalanced_quotes_one() {
+  let str = "token1 \"token2";
+  assert!( lex_statement( str ) == Err( UnmatchedQuote ) );
+}
+
+#[test]
+fn test_unbalanced_quotes_two() {
+  let str = "token1\"token2\\\"";
+  assert!( lex_statement( str ) == Err( UnmatchedQuote ) );
+}
+
+#[test]
+fn test_unbalanced_escape() {
+  let str = "token1\\";
+  assert!( lex_statement( str ) == Err( UnmatchedEscape ) );
 }
