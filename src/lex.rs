@@ -12,23 +12,31 @@ enum EscapeState {
   Escaping
 }
 
+enum TokenType {
+  StringToken,
+  QuotedToken( char ),
+  CommaToken,
+  LeftParenToken,
+  RightParenToken
+}
+
 struct Token {
   token: String,
-  quoted: Option<char>
+  token_type: TokenType,
 }
 
 impl Token {
   fn new() -> Token {
     Token{
-      token: String::new(),
-      quoted: None
+      token_type: StringToken,
+      token: String::new()
     }
   }
 
   fn from_str( str: &str ) -> Token {
     Token{
-      token: String::from_str( str ),
-      quoted: None
+      token_type: StringToken,
+      token: String::from_str( str )
     }
   }
 
@@ -48,8 +56,8 @@ impl Token {
     self.token.len()
   }
 
-  fn set_quoting( &mut self, char: char ) {
-    self.quoted = Some( char );
+  fn set_type( &mut self, token_type: TokenType ) {
+    self.token_type = token_type;
   }
 }
 
@@ -60,12 +68,12 @@ impl PartialEq for Token {
 }
 
 macro_rules! tokens_append(
-  ($t: ident, $ts: ident) => (
-    match $t.len() {
+  ($token: ident, $tokens: ident) => (
+    match $token.len() {
       0 => {},
       _ => {
-        $ts.push( $t );
-        $t = Token::new();
+        $tokens.push( $token );
+        $token = Token::new();
       }
     }
   )
@@ -96,8 +104,8 @@ pub fn lex_statement( input: &str ) -> Option<Vec<Token>> {
         match char {
           '\'' | '"' => {
             tokens_append!( token, tokens );
+            token.set_type( QuotedToken( char ) );
             quote_state = Quote( char );
-            token.set_quoting( char );
             continue;
           },
           _ => {}
@@ -118,6 +126,12 @@ pub fn lex_statement( input: &str ) -> Option<Vec<Token>> {
       ',' | '(' | ')' => {
         tokens_append!( token, tokens );
         token.push( char );
+        token.set_type( match char {
+          ',' => CommaToken,
+          '(' => LeftParenToken,
+          ')' => RightParenToken,
+          _ => StringToken
+        } );
         tokens_append!( token, tokens );
       },
       _ => {
