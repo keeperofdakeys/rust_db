@@ -12,7 +12,7 @@ enum EscapeState {
   Escaping
 }
 
-enum TokenType {
+pub enum TokenType {
   StringToken,
   QuotedToken( char ),
   CommaToken,
@@ -20,7 +20,7 @@ enum TokenType {
   RightParenToken
 }
 
-struct Token {
+pub struct Token {
   token: String,
   token_type: TokenType,
 }
@@ -59,6 +59,14 @@ impl Token {
   fn set_type( &mut self, token_type: TokenType ) {
     self.token_type = token_type;
   }
+
+  pub fn get_type( &self ) -> TokenType {
+    self.token_type
+  }
+
+  pub fn get_token<'a>( &'a self ) -> &'a str {
+    self.token.as_slice()
+  }
 }
 
 impl PartialEq for Token {
@@ -68,7 +76,7 @@ impl PartialEq for Token {
 }
 
 #[deriving(PartialEq)]
-enum LexError {
+pub enum LexError {
   UnmatchedQuote,
   UnmatchedEscape
 }
