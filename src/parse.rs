@@ -1,16 +1,15 @@
 use lex::{ TokenType, StringToken, QuotedToken, CommaToken, LeftParenToken, RightParenToken };
 use lex::{ Token, LexError, UnmatchedQuote, UnmatchedEscape, lex_statement };
-
-enum ParseError {
-  ErrNoCommand,
-}
+use std::fmt;
 
 fn parse_statement( tokens: Vec<Token> ) -> Result<(), ParseError> {
-  let mut paren_nest = 0u;
-  let command = match parse_command( tokens.as_slice() ) {
-    Some( c ) => c,
-    None => return Err( ErrNoCommand )
-  };
+  let mut parser = Parser::new();
+  for token in tokens.iter() {
+    match parser.handle_token( token ) {
+      Err( p ) => return Err( p ),
+      _ => {}
+    }
+  }
   Ok( () )
 }
 
@@ -20,15 +19,48 @@ enum Command {
   CmdUpdate
 }
 
-fn parse_command( tokens: &[Token] ) -> Option<Command> {
-  if tokens.len() == 0 {
-    return None;
+enum ParsingState {
+  ParseInit,
+  ParseCmd,
+  ParseColumns,
+  ParseTables,
+  ParseWhere,
+  ParseOrderBy
+}
+
+struct Parser {
+  state: ParsingState,
+}
+
+impl Parser {
+  fn new() -> Parser {
+    Parser {
+      state: ParseInit
+    }
   }
-  match tokens[0].get_token() {
-    "select" => parse_select( tokens.slice_from( 1 ) ),
-    "insert" => parse_insert( tokens.slice_from( 1 ) ),
-    "update" => parse_update( tokens.slice_from( 1 ) ),
-    _ => None
+  
+  fn handle_token( &self, token: &Token ) -> Result<(), ParseError> {
+    let contents = token.get_token();
+
+    match token.get_type() {
+      StringToken => {},
+      QuotedToken( c ) => {},
+      CommaToken => {},
+      LeftParenToken => {},
+      RightParenToken => {}
+    };
+    Ok( () )
+  }
+}
+
+struct ParseError {
+  found: Token,
+  expected: Token
+}
+
+impl fmt::Show for ParseError {
+  fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
+    write!( f, "Error: found {}, expected {}", self.found, self.expected )
   }
 }
 
@@ -43,22 +75,3 @@ macro_rules! advance_iter(
     }
   )
 )
-    
-
-fn parse_select( tokens: &[Token] ) -> Option<Command> {
-  let mut values = Vec::new();
-  let mut iter = tokens.iter().enumerate();
-  let (index, val): (uint, &Token);
-  loop {
-    advance_iter!( iter, index, val );
-  }
-  None
-}
-
-fn parse_insert( tokens: &[Token] ) -> Option<Command> {
-  None
-}
-
-fn parse_update( tokens: &[Token] ) -> Option<Command> {
-  None
-}

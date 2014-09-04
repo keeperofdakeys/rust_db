@@ -1,4 +1,5 @@
 use std::char::is_whitespace;
+use std::fmt;
 
 #[deriving(PartialEq)]
 enum QuoteState {
@@ -72,6 +73,23 @@ impl Token {
 impl PartialEq for Token {
   fn eq( &self, other: &Token ) -> bool {
     self.token.eq( &other.token )
+  }
+}
+
+impl fmt::Show for Token {
+  fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
+    match self.token_type {
+      StringToken =>
+        write!( f, "{}", self.token ),
+      QuotedToken( char ) =>
+        write!( f, "\"{}\"", self.token ),
+      CommaToken =>
+        write!( f, "," ),
+      LeftParenToken =>
+        write!( f, "(" ),
+      RightParenToken =>
+        write!( f, ")" )
+    }
   }
 }
 
