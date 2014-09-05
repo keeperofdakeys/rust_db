@@ -6,7 +6,7 @@ fn parse_statement( tokens: Vec<Token> ) -> Result<(), ParseError> {
   let mut parser = Parser::new();
   for token in tokens.iter() {
     match parser.handle_token( token ) {
-      Err( p ) => return Err( p ),
+      Err( p ) => return Err( ParseError{ found: token.clone(), expected: p } ),
       _ => {}
     }
   }
@@ -23,23 +23,27 @@ enum ParsingState {
   ParseInit,
   ParseCmd,
   ParseColumns,
+  ParseColumnsComma,
   ParseTables,
+  ParseTablesComma,
   ParseWhere,
   ParseOrderBy
 }
 
 struct Parser {
   state: ParsingState,
+  paren_level: uint
 }
 
 impl Parser {
   fn new() -> Parser {
     Parser {
-      state: ParseInit
+      state: ParseInit,
+      paren_level: 0
     }
   }
   
-  fn handle_token( &self, token: &Token ) -> Result<(), ParseError> {
+  fn handle_token( &mut self, token: &Token ) -> Result<(), Token> {
     let contents = token.get_token();
 
     match token.get_type() {
@@ -51,26 +55,59 @@ impl Parser {
     }
   }
 
-  fn handle_string( &self, token: &str ) -> Result<(), ParseError> {
+  fn handle_string( &self, token: &str ) -> Result<(), Token> {
+    match self.state {
+      ParseInit => {},
+      ParseCmd => {},
+      ParseColumns => {},
+      ParseColumnsComma => {},
+      ParseTables => {},
+      ParseTablesComma => {},
+      ParseWhere => {},
+      ParseOrderBy => {},
+    }
     Ok( () )
   }
 
-  fn handle_quoted( &self, token: &str, quote: char ) -> Result<(), ParseError> {
+  fn handle_quoted( &self, token: &str, quote: char ) -> Result<(), Token> {
     Ok( () )
   }
 
-  fn handle_comma( &self ) -> Result<(), ParseError> {
+  fn handle_comma( &mut self ) -> Result<(), Token> {
+    match self.state {
+      ParseInit => {
+        return Err( self.comma_token() )
+      },
+      ParseCmd => {},
+      ParseColumns => {
+        self.state = ParseColumnsComma
+      },
+      ParseColumnsComma => {
+        return Err( self.comma_token() )
+      },
+      ParseTables => {
+        self.state = ParseTables
+      },
+      ParseTablesComma => {
+        return Err( self.comma_token() )
+      },
+      ParseWhere => {},
+      ParseOrderBy => {},
+    }
     Ok( () )
   }
 
-  fn handle_left_paren( &self ) -> Result<(), ParseError> {
+  fn handle_left_paren( &self ) -> Result<(), Token> {
     Ok( () )
   }
 
-  fn handle_right_paren( &self ) -> Result<(), ParseError> {
+  fn handle_right_paren( &self ) -> Result<(), Token> {
     Ok( () )
   }
 
+  fn comma_token( &self ) -> Token {
+    Token::new_tok( CommaToken, "," )
+  }
 }
 
 struct ParseError {

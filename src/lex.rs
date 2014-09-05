@@ -13,6 +13,7 @@ enum EscapeState {
   Escaping
 }
 
+#[deriving(Clone)]
 pub enum TokenType {
   StringToken,
   QuotedToken( char ),
@@ -21,16 +22,24 @@ pub enum TokenType {
   RightParenToken
 }
 
+#[deriving(Clone)]
 pub struct Token {
   token: String,
   token_type: TokenType,
 }
 
 impl Token {
-  fn new() -> Token {
+  pub fn new() -> Token {
     Token{
       token_type: StringToken,
       token: String::new()
+    }
+  }
+
+  pub fn new_tok( token_type: TokenType, string: &str ) -> Token {
+    Token{
+      token_type: token_type,
+      token: string.to_string()
     }
   }
 
