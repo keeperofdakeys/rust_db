@@ -43,14 +43,34 @@ impl Parser {
     let contents = token.get_token();
 
     match token.get_type() {
-      StringToken => {},
-      QuotedToken( c ) => {},
-      CommaToken => {},
-      LeftParenToken => {},
-      RightParenToken => {}
-    };
+      StringToken => self.handle_string( contents ),
+      QuotedToken( c ) => self.handle_quoted( contents, c ),
+      CommaToken => self.handle_comma(),
+      LeftParenToken => self.handle_left_paren(),
+      RightParenToken => self.handle_right_paren()
+    }
+  }
+
+  fn handle_string( &self, token: &str ) -> Result<(), ParseError> {
     Ok( () )
   }
+
+  fn handle_quoted( &self, token: &str, quote: char ) -> Result<(), ParseError> {
+    Ok( () )
+  }
+
+  fn handle_comma( &self ) -> Result<(), ParseError> {
+    Ok( () )
+  }
+
+  fn handle_left_paren( &self ) -> Result<(), ParseError> {
+    Ok( () )
+  }
+
+  fn handle_right_paren( &self ) -> Result<(), ParseError> {
+    Ok( () )
+  }
+
 }
 
 struct ParseError {
