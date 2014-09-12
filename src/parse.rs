@@ -13,7 +13,7 @@ fn parse_statement( tokens: Vec<Token> ) -> Result<(), ParseError> {
   Ok( () )
 }
 
-enum Command {
+enum SqlCommand {
   CmdSelect,
   CmdInsert,
   CmdUpdate
@@ -30,17 +30,27 @@ enum ParsingState {
   ParseOrderBy
 }
 
-struct Parser {
+struct Parser<'a> {
   state: ParsingState,
-  paren_level: uint
+  command: Option<SqlCommand>,
+  values: Vec<Vec<&'a Token>>
 }
 
-impl Parser {
-  fn new() -> Parser {
-    Parser {
+impl<'a> Parser<'a> {
+  fn new<'a>() -> Parser<'a> {
+    let mut p = Parser {
       state: ParseInit,
-      paren_level: 0
-    }
+      command: None,
+      values: Vec::new()
+    };
+    p.values.push( Vec::new() );
+    p
+  }
+
+  fn push_val( &mut self, token: &'a Token ) {
+    let pos = self.values.len() - 1;
+    let mut back_vec = self.values.as_mut_slice().get_mut(pos).unwrap();
+    back_vec.push( token );
   }
   
   fn handle_token( &mut self, token: &Token ) -> Result<(), Token> {
@@ -55,12 +65,15 @@ impl Parser {
     }
   }
 
-  fn handle_string( &self, token: &str ) -> Result<(), Token> {
+  fn handle_string( &mut self, token: &str ) -> Result<(), Token> {
     match self.state {
       ParseInit => {},
       ParseCmd => {},
       ParseColumns => {},
-      ParseColumnsComma => {},
+      ParseColumnsComma => {
+        //self.push_val( token );
+        self.state = ParseColumnsComma
+      },
       ParseTables => {},
       ParseTablesComma => {},
       ParseWhere => {},
