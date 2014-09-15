@@ -19,7 +19,8 @@ pub enum TokenType {
   QuotedToken( char ),
   CommaToken,
   LeftParenToken,
-  RightParenToken
+  RightParenToken,
+  SemiColonToken
 }
 
 #[deriving(Clone)]
@@ -97,7 +98,9 @@ impl fmt::Show for Token {
       LeftParenToken =>
         write!( f, "(" ),
       RightParenToken =>
-        write!( f, ")" )
+        write!( f, ")" ),
+      SemiColonToken =>
+        write!( f, ";" )
     }
   }
 }
@@ -164,13 +167,14 @@ pub fn lex_statement( input: &str ) -> Result<Vec<Token>, LexError> {
       }
     }
     match char {
-      ',' | '(' | ')' => {
+      ',' | '(' | ')' | ';' => {
         tokens_append!( token, tokens );
         token.push( char );
         token.set_type( match char {
           ',' => CommaToken,
           '(' => LeftParenToken,
           ')' => RightParenToken,
+          ';' => SemiColonToken,
           _ => StringToken
         } );
         tokens_append!( token, tokens );
