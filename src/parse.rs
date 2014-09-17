@@ -6,7 +6,6 @@ fn parse_statement( tokens: Vec<Token> ) -> Result<(), ()> {
   let mut parser = Parser::new();
   for token in tokens.iter() {
     match parser.handle_token( token ) {
-      //Err( p ) => return Err( ParseError{ found: token.clone(), expected: p } ),
       Err( p ) => return Err( () ),
       _ => {}
     }
@@ -17,7 +16,8 @@ fn parse_statement( tokens: Vec<Token> ) -> Result<(), ()> {
 enum SqlCommand {
   CmdSelect,
   CmdInsert,
-  CmdUpdate
+  CmdUpdate,
+  CmdDelete
 }
 
 enum ParsingState {
@@ -48,15 +48,14 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
   fn new<'a>() -> Parser<'a> {
-    let mut p = Parser {
+    Parser {
       state: ParseCmd,
       command: None,
       columns: Vec::new(),
       tables: Vec::new(),
       wheres: Vec::new(),
       values: Vec::new(),
-    };
-    p
+    }
   }
 
   /*
@@ -67,7 +66,7 @@ impl<'a> Parser<'a> {
   }
   */
   
-  fn handle_token( &mut self, token: &Token ) -> Result<(), ()> {
+  fn handle_token( &mut self, token: &'a Token ) -> Result<(), ()> {
     match token.get_type() {
       StringToken => self.handle_string( token ),
       QuotedToken( c ) => self.handle_quoted( token, c ),
@@ -78,7 +77,7 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn handle_string( &mut self, token: &Token ) -> Result<(), ()> {
+  fn handle_string( &mut self, token: &'a Token ) -> Result<(), ()> {
     match self.state {
       ParseCmd => self.handle_command( token ),
       ParseColumnsValue => {
@@ -103,7 +102,7 @@ impl<'a> Parser<'a> {
     }
   }
 
-  fn handle_quoted( &self, token: &Token, quote: char ) -> Result<(), ()> {
+  fn handle_quoted( &mut self, token: &'a Token, quote: char ) -> Result<(), ()> {
     match self.state {
       ParseColumnsValue => {
         self.handle_column_token( token )
@@ -127,11 +126,15 @@ impl<'a> Parser<'a> {
   }
 
   fn handle_left_paren( &self ) -> Result<(), ()> {
-    Err( () )
+    match self.state {
+      _ => Err( () )
+    }
   }
 
   fn handle_right_paren( &self ) -> Result<(), ()> {
-    Err( () )
+    match self.state {
+      _ => Err( () )
+    }
   }
 
   fn handle_semicolon( &mut self ) -> Result<(), ()> {
@@ -146,16 +149,27 @@ impl<'a> Parser<'a> {
 
   fn handle_command( &mut self, token: &Token ) -> Result<(), ()> {
     self.command = match token.get_token() {
-      "select" => Some(CmdSelect),
+      "select" => {
+        self.state = ParseColumnsValue;
+        Some(CmdSelect)
+      },
       "insert" => Some(CmdInsert),
       "update" => Some(CmdUpdate),
+      "delete" => Some(CmdDelete),
       _ => None
     };
     Ok( () )
   }
 
-  fn handle_column_token( &self, token: &Token ) -> Result<(), ()> {
-    Ok( () )
+  fn handle_column_token( &mut self, token: &'a Token ) -> Result<(), ()> {
+    match token.get_type() {
+      StringToken => self.handle_string( token ),
+      QuotedToken( c ) => {
+        self.columns.push( token );
+        Ok( () )
+      },
+      _ => Err( () )
+    }
   }
 
   fn handle_table_token( &self, token: &Token ) -> Result<(), ()> {
@@ -166,26 +180,3 @@ impl<'a> Parser<'a> {
     Token::new_tok( CommaToken, "," )
   }
 }
-
-struct ParseError {
-  found: Token,
-  expected: Token
-}
-
-impl fmt::Show for ParseError {
-  fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
-    write!( f, "Error: found {}, expected {}", self.found, self.expected )
-  }
-}
-
-macro_rules! advance_iter(
-  ($iter: ident, $index: ident, $val: ident) => (
-    match $iter.next() {
-      Some( (i, v) ) => {
-        $index = i;
-        $val = v;
-      }
-      None => break
-    }
-  )
-)
