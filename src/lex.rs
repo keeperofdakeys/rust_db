@@ -14,41 +14,26 @@ enum EscapeState {
 }
 
 #[deriving(Clone)]
-pub enum TokenType {
-  StringToken,
-  QuotedToken( char ),
+pub enum Token {
+  StringToken( String ),
+  QuotedToken( String, char ),
   CommaToken,
   LeftParenToken,
   RightParenToken,
   SemiColonToken
 }
 
-#[deriving(Clone)]
-pub struct Token {
-  token: String,
-  token_type: TokenType,
-}
-
 impl Token {
-  pub fn new() -> Token {
-    Token{
-      token_type: StringToken,
-      token: String::new()
-    }
+  fn str_tok() -> Token {
+    StringToken( String::new() )
   }
 
-  pub fn new_tok( token_type: TokenType, string: &str ) -> Token {
-    Token{
-      token_type: token_type,
-      token: string.to_string()
-    }
+  fn quot_tok( char: char ) -> Token {
+    QuotedToken( String::new(), char )
   }
 
   fn from_str( str: &str ) -> Token {
-    Token{
-      token_type: StringToken,
-      token: String::from_str( str )
-    }
+    StringToken( str.to_string() )
   }
 
   fn from_str_vec( str_vec: Vec<&str> ) -> Vec<Token> {
@@ -60,39 +45,56 @@ impl Token {
   }
 
   fn push( &mut self, char: char ) {
-    self.token.push_char( char );
+    match *self {
+      StringToken( ref mut s ) => s.push_char( char ),
+      QuotedToken( ref mut s, _ ) => s.push_char( char ),
+      _ => {}
+    }
   }
 
   fn len( &self ) -> uint {
-    self.token.len()
+    match *self {
+      StringToken( ref s ) => s.len(),
+      QuotedToken( ref s, _ ) => s.len(),
+      _ => 1
+    }
   }
 
-  fn set_type( &mut self, token_type: TokenType ) {
-    self.token_type = token_type;
-  }
-
-  pub fn get_type( &self ) -> TokenType {
-    self.token_type
-  }
-
-  pub fn get_token<'a>( &'a self ) -> &'a str {
-    self.token.as_slice()
+  pub fn get_str<'a>( &'a self ) -> &'a str {
+    match *self {
+      StringToken( ref s ) => s.as_slice(),
+      QuotedToken( ref s, _ ) => s.as_slice(),
+      CommaToken => ",",
+      LeftParenToken => "(",
+      RightParenToken => ")",
+      SemiColonToken => ";"
+    }
   }
 }
 
 impl PartialEq for Token {
   fn eq( &self, other: &Token ) -> bool {
-    self.token.eq( &other.token )
+    match (self, other) {
+      (&StringToken(ref s1), &StringToken(ref s2)) => s1.eq(s2),
+      (&QuotedToken(ref s1, ref c1), &QuotedToken(ref s2, ref c2)) => {
+        s1.eq(s2) && c1.eq(c2)
+      },
+      (&CommaToken, &CommaToken) => true,
+      (&LeftParenToken, &LeftParenToken) => true,
+      (&RightParenToken, &RightParenToken) => true,
+      (&SemiColonToken, &SemiColonToken) => true,
+      _ => false
+    }
   }
 }
 
 impl fmt::Show for Token {
   fn fmt( &self, f: &mut fmt::Formatter ) -> fmt::Result {
-    match self.token_type {
-      StringToken =>
-        write!( f, "{}", self.token ),
-      QuotedToken( char ) =>
-        write!( f, "\"{}\"", self.token ),
+    match *self {
+      StringToken( ref s ) =>
+        write!( f, "{}", s ),
+      QuotedToken( ref s, ref c ) =>
+        write!( f, "{}{}{}", c, s, c ),
       CommaToken =>
         write!( f, "," ),
       LeftParenToken =>
@@ -113,18 +115,19 @@ pub enum LexError {
 
 macro_rules! tokens_append(
   ($token: ident, $tokens: ident) => (
-    match $token.len() {
-      0 => {},
+    match $token {
+      StringToken( ref s ) if s.len() == 0 => {},
+      QuotedToken( ref s, _ ) if s.len() == 0 => {},
       _ => {
         $tokens.push( $token );
-        $token = Token::new();
+        $token = Token::str_tok();
       }
     }
   )
 )
 
 pub fn lex_statement( input: &str ) -> Result<Vec<Token>, LexError> {
-  let mut token = Token::new();
+  let mut token = Token::str_tok();
   let mut tokens = Vec::new();
   let mut quote_state = NoQuote;
   let mut escape_state = NoEscape;
@@ -148,7 +151,7 @@ pub fn lex_statement( input: &str ) -> Result<Vec<Token>, LexError> {
         match char {
           '\'' | '"' => {
             tokens_append!( token, tokens );
-            token.set_type( QuotedToken( char ) );
+            token = Token::quot_tok( char );
             quote_state = Quote( char );
             continue;
           },
@@ -170,13 +173,13 @@ pub fn lex_statement( input: &str ) -> Result<Vec<Token>, LexError> {
       ',' | '(' | ')' | ';' => {
         tokens_append!( token, tokens );
         token.push( char );
-        token.set_type( match char {
+        token = match char {
           ',' => CommaToken,
           '(' => LeftParenToken,
           ')' => RightParenToken,
           ';' => SemiColonToken,
-          _ => StringToken
-        } );
+          _ => Token::str_tok(),
+        };
         tokens_append!( token, tokens );
       },
       _ => {
