@@ -75,9 +75,51 @@ impl<'a> SelectStruct<'a> {
         self.handle_table_token( token )
       },
       SelectTablesNext => {
-        Err( () )
+        match token.get_str() {
+          "using" => {
+            self.state = SelectJoinUsingValue;
+            Ok( () )
+          },
+          "left" => {
+            self.handle_left_join();
+            self.state = SelectTablesJoin;
+            Ok( () )
+          },
+          "right" => {
+            self.handle_right_join();
+            self.state = SelectTablesJoin;
+            Ok( () )
+          },
+          "inner" => {
+            self.handle_inner_join();
+            self.state = SelectTablesJoin;
+            Ok( () )
+          },
+          "natural" => {
+            self.handle_natural_join();
+            self.state = SelectTablesJoin;
+            Ok( () )
+          },
+          _ => Err( () )
+        }
       },
-      SelectTablesJoinType => Err( () ),
+      SelectTablesJoin => {
+        match token.get_str() {
+          "join" => {
+            self.handle_table_token( token );
+            self.state = SelectTablesValue;
+            Ok( () )
+          },
+          _ => Err( () )
+        }
+      },
+      SelectJoinUsingValue => {
+        self.handle_using_token( token );
+        Ok( () )
+      },
+      SelectJoinUsingNext => {
+        Ok( () )
+      },
       SelectEnd => Err( () )
     }
   }
@@ -156,7 +198,7 @@ impl<'a> SelectStruct<'a> {
       QuotedToken( ref s, c ) => {
         self.columns.push( ColumnQuoted( s.as_slice(), c ) );
         Ok( () )
-      }
+      },
       _ => Err( () )
     }
   }
@@ -203,24 +245,51 @@ impl<'a> SelectStruct<'a> {
     }
   }
 
-  fn handle_left_join( &self ) -> Result<(), ()> {
-    Err( () )
+  fn handle_left_join( &mut self ) -> Result<(), ()> {
+    self.tables.push( TableLeftJoin );
+    Ok( () )
   }
 
-  fn handle_right_join( &self ) -> Result<(), ()> {
-    Err( () )
+  fn handle_right_join( &mut self ) -> Result<(), ()> {
+    self.tables.push( TableLeftJoin );
+    Ok( () )
   }
 
-  fn handle_inner_join( &self ) -> Result<(), ()> {
-    Err( () )
+  fn handle_inner_join( &mut self ) -> Result<(), ()> {
+    self.tables.push( TableLeftJoin );
+    Ok( () )
   }
 
-  fn handle_natural_join( &self ) -> Result<(), ()> {
-    Err( () )
+  fn handle_natural_join( &mut self ) -> Result<(), ()> {
+    self.tables.push( TableLeftJoin );
+    Ok( () )
   }
 
-  fn handle_cross_join( &self ) -> Result<(), ()> {
-    Err( () )
+  fn handle_cross_join( &mut self ) -> Result<(), ()> {
+    self.tables.push( TableLeftJoin );
+    Ok( () )
+  }
+
+  fn handle_using_token( &mut self, token: &'a Token ) -> Result<(), ()> {
+    let tok_str = match *token {
+      StringToken( ref s ) => s.as_slice(),
+      _ => return Err( () )
+    };
+
+    match self.join_on.pop() {
+      Some( OnColumn( s1 ) ) => {
+        self.join_on.push( OnColumns( s1, tok_str ) );
+        Ok( () )
+      },
+      Some( c ) => {
+        self.join_on.push( c );
+        Ok( () )
+      },
+      None => {
+        self.join_on.push( OnColumn( tok_str ) );
+        Ok( () )
+      }
+    }
   }
 }
 
@@ -231,7 +300,9 @@ enum SelectState {
   SelectColumnsFuncNext,
   SelectTablesValue,
   SelectTablesNext,
-  SelectTablesJoinType,
+  SelectTablesJoin,
+  SelectJoinUsingValue,
+  SelectJoinUsingNext,
   SelectEnd
 }
   
@@ -243,16 +314,17 @@ enum ColumnVal<'a> {
 
 enum TableVal<'a> {
   TableString(&'a str),
-  TableNextedQuery(&'a str),
-  TableLeftJoin(&'a str),
-  TableRightJoin(&'a str),
-  TableInnerJoin(&'a str),
-  TableNaturalJoin(&'a str),
-  TableCrossJoin(&'a str)
+  TableNestedQuery(&'a str),
+  TableLeftJoin,
+  TableRightJoin,
+  TableInnerJoin,
+  TableNaturalJoin,
+  TableCrossJoin
 }
 
 enum OnVal<'a> {
-  OnString(&'a str)
+  OnColumn(&'a str),
+  OnColumns(&'a str, &'a str)
 }
 
 enum WhereVal<'a> {
